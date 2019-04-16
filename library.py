@@ -10,7 +10,7 @@ def date_to_jde(y, m, d):
     """
     See Chapter 7 (Astronomical Algorithms, Jean Meeus)
     Converts the Gregorian date passed in to Julian Ephemeris Day (JDE)
-    NOTE: it works only for dates past November 23, −4713
+    NOTE: it only works for dates past November -4712
     :arg:    y -> year
     :arg:    m -> month
     :arg:    d -> day
@@ -730,17 +730,82 @@ def get_coordinates_moon(y, m, d):
     return output
 
 
+# def dec_deg_decomposition(angle):
+#     """
+#     See https://www.rapidtables.com/convert/number/degrees-to-degrees-minutes-seconds.html
+#     Converts decimal degrees to degrees, minutes, and seconds
+#     :arg:    angle -> Angle in degrees
+#     :return: (degree, minutes, seconds)
+#     """
+#     d = int(angle)
+#     m = int((angle - d) * 60)
+#     s = (angle - d - m/60) * 3600
+#     return d, m, s
+
+
+def get_coords(alpha, delta, distance, factor):
+    """
+    See http://fmwriters.com/Visionback/Issue14/wbputtingstars.htm
+    See Chapter 12 (Astronomical Algorithms, Jean Meeus)
+    Converts the right ascension and declination to cartesian coordinates
+    :arg:    alpha -> right ascension
+    :arg:    delta -> right declination
+    :arg:    distance -> distance to the earth in kms
+    :arg:    factor -> how much to scale the vectors by
+    :return: (x, y, z)
+    """
+    # d_alpha, m_alpha, s_alpha = dec_deg_decomposition(alpha % 360)
+    # h_alpha = d_alpha * 0.0667  # degree to hour
+    # d_delta, m_delta, s_delta = dec_deg_decomposition(delta)
+    # sign_delta = -1 if delta < 0 else 1
+
+    # # galactic coordinates
+    # A = (h_alpha * 15) + (m_alpha * 0.25) + (s_alpha * 0.004166)
+    # B = (int(d_delta) + (m_delta / 60)) + (s_delta / 3600) * sign_delta
+    # C = distance * 0.00000000000010570  # km to ly
+
+    # x = (C * math.cos(B)) * math.cos(A)
+    # y = (C * math.cos(B)) * math.sin(A)
+    # z = (C * math.sin(B))
+
+    # Galactic Coordinates (angles)
+    X = math.atan2(math.sin(math.radians(192.25 - alpha)),
+                   math.cos(math.radians(192.25 - alpha)) * math.sin(math.radians(27.4)) -
+                   math.tan(math.radians(delta)) * math.cos(math.radians(27.4)))
+    L = 303 - X
+    B = math.asin(math.sin(math.radians(delta)) * math.sin(math.radians(27.4)) +
+                  math.cos(math.radians(delta)) * math.cos(math.radians(27.4)) *
+                  math.cos(math.radians(192.25 - alpha)))
+
+    x = X * 10 ** factor
+    y = L * 10 ** factor
+    z = B * 10 ** factor
+
+    return x, y, z
+
+
 def get_illuminated_fraction_moon(y, m, d):
     """
     See Chapter 46 (Astronomical Algorithms, Jean Meeus)
-    Calculates and returns the fraction of the moon that is illuminated
+    Calculates and returns the fraction of the moon that is illuminated. The
+    coordinates returned is lunar-centric. (IMPORTANT)
     :arg:    y -> year
     :arg:    m -> month
     :arg:    d -> day
-    :return: {"illuminated_fraction": float, "position_angle": float}
+    :return: {"illuminated_fraction": float, "position_angle": float,
+              "coords_sun": (float, float, float),
+              "coords_moon": (float, float, float)}
     """
     sun = get_coordinates_sun(y, m, d)
     moon = get_coordinates_moon(y, m, d)
+
+    print("Sun:")
+    for k in sun:
+        print(k, sun[k])
+    print("\nMoon:")
+    for k in moon:
+        print(k, moon[k])
+    print("\nPhase:")
 
     # geocentric elongation of the moon
     shi = math.acos(math.cos(math.radians(moon['beta'])) * \
@@ -756,7 +821,7 @@ def get_illuminated_fraction_moon(y, m, d):
                                 # See p.315 for more information on what this
                                 # ratio means.
 
-    # position angle of the moon
+    # Position angle of the moon:
     # Starting at the north of the disk of the moon, this is the angle swept
     # out by the area covered by light. The cusps of this area are given by
     # x + 90 and x - 90. This sweeping angle is calculated clockwise.
@@ -771,9 +836,28 @@ def get_illuminated_fraction_moon(y, m, d):
                    math.cos(math.radians(sun['delta'])) *
                    math.sin(math.radians(moon['delta'])) *
                    math.cos(math.radians(sun['alpha'] - moon['alpha'])))
+
+    # get solar and lunar cartesian coordinates
+    x_sun, y_sun, z_sun = get_coords(sun['alpha'], sun['delta'], sun['distance_to_earth'], 1)
+    x_moon, y_moon, z_moon = get_coords(moon['alpha'], moon['delta'], moon['distance_to_earth'], 1)
+
+    # make sun's coordinates lunar centric and scale them
+    x_sun -= x_moon
+    y_sun -= y_moon
+    z_sun -= z_moon
+
+    # scale earth's view of the moon to a unit sphere
+    c_moon = math.sqrt(x_moon * x_moon + y_moon * y_moon + z_moon * z_moon)
+    x_earth = -x_moon/c_moon
+    y_earth = -y_moon/c_moon
+    z_earth = -z_moon/c_moon
+
+    # output is lunar centric
     output = {
         "illuminated_fraction": k,
-        "position_angle": math.degrees(x) % 360
+        "position_angle": math.degrees(x) % 360,
+        "coords_sun": (-x_sun, -y_sun, -z_sun),
+        "coords_earth": (x_earth, y_earth, z_earth)
     }
     return output
 
