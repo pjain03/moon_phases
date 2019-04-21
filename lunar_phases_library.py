@@ -730,17 +730,17 @@ def get_coordinates_moon(y, m, d):
     return output
 
 
-# def dec_deg_decomposition(angle):
-#     """
-#     See https://www.rapidtables.com/convert/number/degrees-to-degrees-minutes-seconds.html
-#     Converts decimal degrees to degrees, minutes, and seconds
-#     :arg:    angle -> Angle in degrees
-#     :return: (degree, minutes, seconds)
-#     """
-#     d = int(angle)
-#     m = int((angle - d) * 60)
-#     s = (angle - d - m/60) * 3600
-#     return d, m, s
+def dec_deg_decomposition(angle):
+    """
+    See https://www.rapidtables.com/convert/number/degrees-to-degrees-minutes-seconds.html
+    Converts decimal degrees to degrees, minutes, and seconds
+    :arg:    angle -> Angle in degrees
+    :return: (degree, minutes, seconds)
+    """
+    d = int(angle)
+    m = int((angle - d) * 60)
+    s = (angle - d - m/60) * 3600
+    return d, m, s
 
 
 def get_coords(alpha, delta, distance, factor):
@@ -754,32 +754,32 @@ def get_coords(alpha, delta, distance, factor):
     :arg:    factor -> how much to scale the vectors by
     :return: (x, y, z)
     """
-    # d_alpha, m_alpha, s_alpha = dec_deg_decomposition(alpha % 360)
-    # h_alpha = d_alpha * 0.0667  # degree to hour
-    # d_delta, m_delta, s_delta = dec_deg_decomposition(delta)
-    # sign_delta = -1 if delta < 0 else 1
+    d_alpha, m_alpha, s_alpha = dec_deg_decomposition(alpha % 360)
+    h_alpha = d_alpha * 0.0667  # degree to hour
+    d_delta, m_delta, s_delta = dec_deg_decomposition(delta)
+    sign_delta = delta/abs(delta)
 
-    # # galactic coordinates
-    # A = (h_alpha * 15) + (m_alpha * 0.25) + (s_alpha * 0.004166)
-    # B = (int(d_delta) + (m_delta / 60)) + (s_delta / 3600) * sign_delta
-    # C = distance * 0.00000000000010570  # km to ly
+    # galactic coordinates
+    A = (h_alpha * 15) + (m_alpha * 0.25) + (s_alpha * 0.004166)
+    B = (int(d_delta) + (m_delta / 60)) + (s_delta / 3600) * sign_delta
+    C = distance * 0.00000000000010570  # km to ly
 
-    # x = (C * math.cos(B)) * math.cos(A)
-    # y = (C * math.cos(B)) * math.sin(A)
-    # z = (C * math.sin(B))
+    x = (C * math.cos(B)) * math.cos(A) * 10 ** factor
+    y = (C * math.cos(B)) * math.sin(A) * 10 ** factor
+    z = (C * math.sin(B)) * 10 ** factor
 
-    # Galactic Coordinates (angles)
-    X = math.atan2(math.sin(math.radians(192.25 - alpha)),
-                   math.cos(math.radians(192.25 - alpha)) * math.sin(math.radians(27.4)) -
-                   math.tan(math.radians(delta)) * math.cos(math.radians(27.4)))
-    L = 303 - X
-    B = math.asin(math.sin(math.radians(delta)) * math.sin(math.radians(27.4)) +
-                  math.cos(math.radians(delta)) * math.cos(math.radians(27.4)) *
-                  math.cos(math.radians(192.25 - alpha)))
+    # # Galactic Coordinates (angles)
+    # X = math.atan2(math.sin(math.radians(192.25 - alpha)),
+    #                math.cos(math.radians(192.25 - alpha)) * math.sin(math.radians(27.4)) -
+    #                math.tan(math.radians(delta)) * math.cos(math.radians(27.4)))
+    # L = 303 - X
+    # B = math.asin(math.sin(math.radians(delta)) * math.sin(math.radians(27.4)) +
+    #               math.cos(math.radians(delta)) * math.cos(math.radians(27.4)) *
+    #               math.cos(math.radians(192.25 - alpha)))
 
-    x = X * 10 ** factor
-    y = L * 10 ** factor
-    z = B * 10 ** factor
+    # x = X * 10 ** factor
+    # y = L * 10 ** factor
+    # z = B * 10 ** factor
 
     return x, y, z
 
@@ -799,13 +799,12 @@ def get_illuminated_fraction_moon(y, m, d):
     sun = get_coordinates_sun(y, m, d)
     moon = get_coordinates_moon(y, m, d)
 
-    print("Sun:")
+    print("\nSun:")
     for k in sun:
         print(k, sun[k])
     print("\nMoon:")
     for k in moon:
         print(k, moon[k])
-    print("\nPhase:")
 
     # geocentric elongation of the moon
     shi = math.acos(math.cos(math.radians(moon['beta'])) * \
@@ -838,8 +837,8 @@ def get_illuminated_fraction_moon(y, m, d):
                    math.cos(math.radians(sun['alpha'] - moon['alpha'])))
 
     # get solar and lunar cartesian coordinates
-    x_sun, y_sun, z_sun = get_coords(sun['alpha'], sun['delta'], sun['distance_to_earth'], 1)
-    x_moon, y_moon, z_moon = get_coords(moon['alpha'], moon['delta'], moon['distance_to_earth'], 1)
+    x_sun, y_sun, z_sun = get_coords(sun['alpha'], sun['delta'], sun['distance_to_earth'], 6)
+    x_moon, y_moon, z_moon = get_coords(moon['alpha'], moon['delta'], moon['distance_to_earth'], 6)
 
     # make sun's coordinates lunar centric and scale them
     x_sun -= x_moon
@@ -860,5 +859,56 @@ def get_illuminated_fraction_moon(y, m, d):
         "coords_earth": (x_earth, y_earth, z_earth)
     }
     return output
+
+
+def lunar_phase_ascii_art(lunar_output):
+    """
+    See https://www.asciiart.eu/space/moons (<- Amazing ASCII Art Here)
+    Major shoutout to artist 'jgs' for creating this amazing art!
+    :arg:    lunar_output: dictionary of output we need
+    :return: None, prints lunar phase based on illumination fraction and
+             position angle
+    """
+    # ASCII ART WOOOOOOOOOOOO
+    lunar_phases = {
+        "new_moon": "\n   _..._\n .:::::::.\n:::::::::::\n:::::::::::\n`:::::::::'\n  `':::''\n",
+        "waxing_crescent": "   _..._\n .::::. `.\n:::::::.  :\n::::::::  :\n`::::::' .'\n  `'::'-'\n",
+        "first_quarter": "   _..._\n .::::  `.\n::::::    :\n::::::    :\n`:::::   .'\n  `'::.-'\n",
+        "waxing_gibbous": "   _..._\n .::'   `.\n:::       :\n:::       :\n`::.     .'\n  `':..-'\n",
+        "full_moon": "   _..._\n .'     `.\n:         :\n:         :\n`.       .'\n  `-...-'\n",
+        "waning_gibbous": "   _..._\n .'   `::.\n:       :::\n:       :::\n`.     .::'\n  `-..:''\n",
+        "last_quarter": "   _..._\n .'  ::::.\n:    ::::::\n:    ::::::\n`.   :::::'\n  `-.::''\n",
+        "waning_crescent": "   _..._\n .' .::::.\n:  ::::::::\n:  ::::::::\n`. '::::::'\n  `-.::''\n"
+    }
+    if 0 <= lunar_output["illuminated_fraction"] <= 0.05:
+        print(lunar_phases["new_moon"])
+        print("New Moon")
+    elif 0.95 <= lunar_output["illuminated_fraction"] <= 1:
+        print(lunar_phases["full_moon"])
+        print("Full Moon")
+    elif 0.05 < lunar_output["illuminated_fraction"] <= 0.45:
+        # crescent
+        if 0 <= lunar_output["position_angle"] < 180:
+            print(lunar_phases["waning_crescent"])
+            print("Waning Crescent")
+        else:
+            print(lunar_phases["waxing_crescent"])
+            print("Waxing Crescent")
+    elif 0.45 < lunar_output["illuminated_fraction"] <= 0.55:
+        # quarter
+        if 0 <= lunar_output["position_angle"] < 180:
+            print(lunar_phases["last_quarter"])
+            print("Last Quarter")
+        else:
+            print(lunar_phases["first_quarter"])
+            print("First Quarter")
+    else:
+        # gibbous
+        if 0 <= lunar_output["position_angle"] < 180:
+            print(lunar_phases["waning_gibbous"])
+            print("Waning Gibbous")
+        else:
+            print(lunar_phases["waxing_gibbous"])
+            print("Waxing Gibbous")
 
 
