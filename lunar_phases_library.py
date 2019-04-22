@@ -880,13 +880,17 @@ def lunar_phase_ascii_art(lunar_output):
         "last_quarter": "   _..._\n .'  ::::.\n:    ::::::\n:    ::::::\n`.   :::::'\n  `-.::''\n",
         "waning_crescent": "   _..._\n .' .::::.\n:  ::::::::\n:  ::::::::\n`. '::::::'\n  `-.::''\n"
     }
-    if 0 <= lunar_output["illuminated_fraction"] <= 0.05:
+    MAX_NEW_MOON = 0.025
+    MIN_FULL_MOON = 0.975
+    MAX_CRESCENT_MOON = 0.45
+    MAX_QUARTER_MOON = 0.55
+    if 0 <= lunar_output["illuminated_fraction"] <= MAX_NEW_MOON:
         print(lunar_phases["new_moon"])
         print("New Moon")
-    elif 0.95 <= lunar_output["illuminated_fraction"] <= 1:
+    elif MIN_FULL_MOON <= lunar_output["illuminated_fraction"] <= 1:
         print(lunar_phases["full_moon"])
         print("Full Moon")
-    elif 0.05 < lunar_output["illuminated_fraction"] <= 0.45:
+    elif MAX_NEW_MOON < lunar_output["illuminated_fraction"] <= MAX_CRESCENT_MOON:
         # crescent
         if 0 <= lunar_output["position_angle"] < 180:
             print(lunar_phases["waning_crescent"])
@@ -894,7 +898,7 @@ def lunar_phase_ascii_art(lunar_output):
         else:
             print(lunar_phases["waxing_crescent"])
             print("Waxing Crescent")
-    elif 0.45 < lunar_output["illuminated_fraction"] <= 0.55:
+    elif MAX_CRESCENT_MOON < lunar_output["illuminated_fraction"] <= MAX_QUARTER_MOON:
         # quarter
         if 0 <= lunar_output["position_angle"] < 180:
             print(lunar_phases["last_quarter"])
